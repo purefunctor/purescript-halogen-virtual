@@ -6,7 +6,6 @@ import Data.Maybe (Maybe(..))
 import Data.Maybe as Maybe
 import Data.Nullable (Nullable)
 import Data.Nullable as Nullable
-import Effect (Effect)
 import Effect.Class (class MonadEffect)
 import Effect.Uncurried (EffectFn1, EffectFn2, mkEffectFn1, mkEffectFn2)
 import Halogen (RefLabel(..))
@@ -14,33 +13,16 @@ import Halogen as H
 import Halogen.HTML as HH
 import Halogen.HTML.Properties as HP
 import Halogen.Subscription as HS
+import TanStack.Virtual
+  ( VirtualItem
+  , Virtualizer
+  , _didMount
+  , _willUpdate
+  , getTotalSize
+  , getVirtualItems
+  , mkVirtualizer
+  )
 import Web.HTML (HTMLElement)
-
-data Virtualizer
-
-type VirtualizerOptions =
-  { count ∷ Int
-  , getScrollElement ∷ EffectFn1 Unit (Nullable HTMLElement)
-  , estimateSize ∷ Int → Int
-  , onChange ∷ EffectFn2 Virtualizer Boolean Unit
-  }
-
-type VirtualItem =
-  { key ∷ String
-  , index ∷ Int
-  , start ∷ Int
-  , end ∷ Int
-  , size ∷ Int
-  }
-
-foreign import mkVirtualizer ∷ VirtualizerOptions → Virtualizer
-
-foreign import getTotalSize ∷ Virtualizer → Int
-
-foreign import getVirtualItems ∷ Virtualizer → Array VirtualItem
-
-foreign import _didMount ∷ Virtualizer → Effect Unit
-foreign import _willUpdate ∷ Virtualizer → Effect Unit
 
 type State =
   { virtualizer ∷ Maybe Virtualizer
@@ -101,27 +83,31 @@ handleAction = case _ of
 
     mContainerEl ← H.getHTMLElementRef containerLabel
     let
+      getScrollElement ∷ EffectFn1 Unit (Nullable HTMLElement)
+      getScrollElement = mkEffectFn1 \_ → do
+        pure $ case mContainerEl of
+          Just containerEl →
+            Nullable.notNull containerEl
+          Nothing →
+            Nullable.null
+
+      onChange ∷ EffectFn2 Virtualizer Boolean Unit
+      onChange = mkEffectFn2 \_ _ →
+        HS.notify listener Render
+
+      virtualizer ∷ Virtualizer
       virtualizer = mkVirtualizer
         { count: 100
-        , getScrollElement: mkEffectFn1 \_ → do
-            pure $ case mContainerEl of
-              Just containerEl →
-                Nullable.notNull containerEl
-              Nothing →
-                Nullable.null
+        , getScrollElement
         , estimateSize: \_ → 30
-        , onChange: mkEffectFn2 \_ _ →
-            HS.notify listener Render
+        , onChange
         }
 
-    H.modify_ $ \prevState →
-      prevState
-        { virtualizer = Just virtualizer
-        }
-
+    H.put { virtualizer: Just virtualizer }
     H.liftEffect do
       _didMount virtualizer
       _willUpdate virtualizer
+
   Render → do
     H.modify_ \{ virtualizer } → { virtualizer }
 
