@@ -72,9 +72,9 @@ render state =
               <> "px; transform: translateY("
               <> show virtualItem.start
               <> "px);"
-
         ]
-        [ HH.span [ HP.style "display: flex; align-items: center; height: 100%;" ]
+        [ HH.span
+            [ HP.style "display: flex; align-items: center; height: 100%;" ]
             [ HH.text $ virtualItem.key ]
         ]
   in
