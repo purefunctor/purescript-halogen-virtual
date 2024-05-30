@@ -1,0 +1,16 @@
+package:
+  name: halogen-virtual
+  dependencies:
+    - console
+    - debug
+    - effect
+    - halogen-storybook
+    - halogen-subscriptions
+    - prelude
+  test:
+    main: Test.Main
+    dependencies: []
+workspace:
+  packageSet:
+    registry: 51.0.0
+  extraPackages: {}
